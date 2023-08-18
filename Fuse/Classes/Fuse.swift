@@ -8,22 +8,22 @@
 
 import Foundation
 
-public struct FuseProperty {
-    let name: String
+public struct FuseProperty<T> {
+    let keypath: KeyPath<T, String>
     let weight: Double
 
-    public init(name: String) {
-        self.init(name: name, weight: 1)
+    public init(keypath: KeyPath<T, String>) {
+        self.init(keypath: keypath, weight: 1)
     }
 
-    public init(name: String, weight: Double) {
-        self.name = name
+    public init(keypath: KeyPath<T, String>, weight: Double) {
+        self.keypath = keypath
         self.weight = weight
     }
 }
 
 public protocol Fuseable {
-    var properties: [FuseProperty] { get }
+    var properties: [FuseProperty<Self>] { get }
 }
 
 public class Fuse {
@@ -419,7 +419,7 @@ public extension Fuse {
     ///   - text: The pattern string to search for
     ///   - aList: The list of `Fuseable` objects in which to search
     /// - Returns: A list of `CollectionResult` objects
-    func search(_ text: String, in aList: [Fuseable]) -> [FusableSearchResult] {
+    func search(_ text: String, in aList: [some Fuseable]) -> [FusableSearchResult] {
         let pattern = createPattern(from: text)
 
         var collectionResult = [FusableSearchResult]()
@@ -430,8 +430,9 @@ public extension Fuse {
 
             var propertyResults = [(key: String, score: Double, ranges: [CountableClosedRange<Int>])]()
 
+
             item.properties.forEach { property in
-                let value = property.name
+                let value = item[keyPath: property.keypath]
 
                 if let result = self.search(pattern, in: value) {
                     let weight = property.weight == 1 ? 1 : 1 - property.weight
@@ -440,7 +441,7 @@ public extension Fuse {
 
                     scores.append(score)
 
-                    propertyResults.append((key: property.name, score: score, ranges: result.ranges))
+                    propertyResults.append((key: "property.name", score: score, ranges: result.ranges))
                 }
             }
 
@@ -495,7 +496,7 @@ public extension Fuse {
     ///   - aList: The list of `Fuseable` objects in which to search
     ///   - chunkSize: The size of a single chunk of the array. For example, if the array has `1000` items, it may be useful to split the work into 10 chunks of 100. This should ideally speed up the search logic. Defaults to `100`.
     ///   - completion: The handler which is executed upon completion
-    func search(_ text: String, in aList: [Fuseable], chunkSize: Int = 100, completion: @escaping ([FusableSearchResult]) -> Void) {
+    func search(_ text: String, in aList: [some Fuseable], chunkSize: Int = 100, completion: @escaping ([FusableSearchResult]) -> Void) {
         let pattern = createPattern(from: text)
 
         let group = DispatchGroup()
@@ -521,8 +522,7 @@ public extension Fuse {
                     var propertyResults = [(key: String, score: Double, ranges: [CountableClosedRange<Int>])]()
 
                     item.properties.forEach { property in
-
-                        let value = property.name
+                        let value = item[keyPath: property.keypath]
 
                         if let result = self.search(pattern, in: value) {
                             let weight = property.weight == 1 ? 1 : 1 - property.weight
@@ -531,7 +531,7 @@ public extension Fuse {
 
                             scores.append(score)
 
-                            propertyResults.append((key: property.name, score: score, ranges: result.ranges))
+                            propertyResults.append((key: "property.name", score: score, ranges: result.ranges))
                         }
                     }
 
